@@ -33,6 +33,7 @@ import {
   FORK_FAILED,
   FORK_FAILED_STATUS,
   INTERRUPTED_STATUS,
+  PPID,
   SHELL_IGNORED_SIGNALS,
 } from '../../shell/constants.ts'
 import type { ProcessHandle } from '../../execution/process/handle.ts'
@@ -48,6 +49,7 @@ import { JobOutput, Terminal } from '../../shell/console/index.ts'
 import { asyncContextIsolatesTasks } from '../../utils/async_context.ts'
 import {
   currentCaller,
+  expireCaller,
   getCurrentSessionFor,
   runWithCaller,
   runWithRefusalSink,
@@ -130,7 +132,7 @@ import { commandName, forkForCall } from './utils.ts'
 import { encodeText, utf8Locale } from '../../shell/bytes.ts'
 import { runWithSystemClock } from '../../utils/clock.ts'
 import { runWithEnvLimit } from '../session/budget.ts'
-import { visibleEnv } from '../session/state.ts'
+import { seedParent, visibleEnv } from '../session/state.ts'
 
 /**
  * Everything `executeLine` needs from the workspace, passed explicitly
@@ -417,6 +419,7 @@ async function runLine(
         },
         started: (line) => {
           targetSession.processId = targetSession.shellPid = line.record.id.pid
+          if (!targetSession.vars.has(PPID)) seedParent(targetSession, 0)
         },
         ignores: SHELL_IGNORED_SIGNALS,
         pid: targetSession.shellPid,
@@ -1579,6 +1582,7 @@ async function runParsedLine(
         deadline === null ? 0 : deadline.seconds - (performance.now() - deadline.start) / 1000
       if (deadline !== null && left <= 0) deadline.expiry.abort()
       const expire = (): void => {
+        expireCaller()
         deadline?.expiry.abort()
       }
       const timed = deadline !== null && left > 0

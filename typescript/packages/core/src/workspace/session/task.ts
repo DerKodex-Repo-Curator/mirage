@@ -12,7 +12,7 @@
 // limitations under the License.
 // ========= Copyright 2026 @ Strukto.AI All Rights Reserved. =========
 
-import { callerSignal } from '../../context/session_context.ts'
+import { callerSignal, whilePaused } from '../../context/session_context.ts'
 import { MemoryExhausted } from '../../io/errors.ts'
 import { YieldBudget } from '../../io/yield_budget.ts'
 import { PolicyDenied } from '../../policy/index.ts'
@@ -160,6 +160,7 @@ export async function drive(
         default:
           budget ??= new YieldBudget(callerSignal())
           await budget.run()
+          await (whilePaused() ?? undefined)
           answer = () => {
             task.answerResumed()
           }
